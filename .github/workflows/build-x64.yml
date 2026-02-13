@@ -2,10 +2,13 @@ name: build-x64
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -27,9 +30,21 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item target/x86_64-pc-windows-msvc/release/intel_hex_expand.dll dist/IntelHexExpand.dll
+          Compress-Archive -Path dist/IntelHexExpand.dll -DestinationPath dist/IntelHexExpandPlugin-x64.zip -Force
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: IntelHexExpandPlugin-x64
-          path: dist/IntelHexExpand.dll
+          path: |
+            dist/IntelHexExpand.dll
+            dist/IntelHexExpandPlugin-x64.zip
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/IntelHexExpandPlugin-x64.zip
+            dist/IntelHexExpand.dll
+          generate_release_notes: true

@@ -48,3 +48,18 @@ Recommended release asset name:
 - `IntelHexExpandPlugin-x64.zip` (contains `IntelHexExpand.dll` or `intel_hex_expand.dll`)
 
 This repository includes GitHub Actions workflow for x64 build artifact generation.
+
+### Create a release
+
+1. Commit and push latest changes.
+2. Create and push a version tag:
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+3. GitHub Actions will:
+	- build x64 DLL
+	- create `IntelHexExpandPlugin-x64.zip`
+	- publish a GitHub Release for that tag with both DLL and zip attached

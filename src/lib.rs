@@ -202,7 +202,7 @@ unsafe extern "system" fn wm_get_plugin_extended_properties(
     if pval.is_null() {
         return E_POINTER;
     }
-    *pval = BSTR::from("ProcessType=Prettification;MenuCaption=Expand Intel HEX");
+    *pval = BSTR::from("MenuCaption=Expand Intel HEX");
     S_OK
 }
 

@@ -1,0 +1,43 @@
+// IntelHexExpand.idl : IDL source for IntelHexExpand.dll
+
+import "oaidl.idl";
+import "ocidl.idl";
+
+[
+	object,
+	uuid(9B4C9A71-62DE-4A02-8D96-6CF7D65E7249),
+	dual,
+	helpstring("IWinMergeScript Interface"),
+	pointer_default(unique)
+]
+interface IWinMergeScript : IDispatch
+{
+	[propget, id(1), helpstring("property PluginEvent")] HRESULT PluginEvent([out, retval] BSTR *pVal);
+	[propget, id(2), helpstring("property PluginDescription")] HRESULT PluginDescription([out, retval] BSTR *pVal);
+	[propget, id(3), helpstring("property PluginFileFilters")] HRESULT PluginFileFilters([out, retval] BSTR *pVal);
+	[propget, id(4), helpstring("property PluginIsAutomatic")] HRESULT PluginIsAutomatic([out, retval] VARIANT_BOOL *pVal);
+	[propget, id(5), helpstring("property PluginExtendedProperties")] HRESULT PluginExtendedProperties([out, retval] BSTR *pVal);
+	[id(6), helpstring("method UnpackFile")] HRESULT UnpackFile([in] BSTR fileSrc, [in] BSTR fileDst, VARIANT_BOOL * pbChanged, INT * pSubcode, [out, retval] VARIANT_BOOL * pbSuccess);
+	[id(7), helpstring("method PackFile")] HRESULT PackFile([in] BSTR fileSrc, [in] BSTR fileDst, VARIANT_BOOL * pbChanged, INT pSubcode, [out, retval] VARIANT_BOOL * pbSuccess);
+	[id(8), helpstring("method ShowSettingsDialog")] HRESULT ShowSettingsDialog([out, retval] VARIANT_BOOL * pbHandled);
+};
+
+[
+	uuid(DCB0C4C9-A3E0-4C8F-9F33-9D5A4AFD4D9C),
+	version(1.0),
+	helpstring("IntelHexExpand 1.0 Type Library")
+]
+library IntelHexExpandLib
+{
+	importlib("stdole32.tlb");
+	importlib("stdole2.tlb");
+
+	[
+		uuid(C6E98FB5-A2E4-4B83-9F5F-3F5B5105C4AE),
+		helpstring("WinMergeScript Class")
+	]
+	coclass WinMergeScript
+	{
+		[default] interface IWinMergeScript;
+	};
+};

@@ -40,6 +40,14 @@ No COM registration is required.
 - `PluginEvent`: `FILE_PACK_UNPACK`
 - `PluginFileFilters`: `\.hex$;\.ihx$`
 - Menu caption: `Expand Intel HEX`
+- Automatic execution by extension is not guaranteed in all WinMerge environments.
+- Recommended operation: run plugin manually from WinMerge menu when comparing `.hex` / `.ihx` files.
+
+### Recommended usage (manual)
+
+1. Open two Intel HEX files in WinMerge.
+2. Run this plugin from WinMerge's plugin menu (unpack plugin).
+3. Compare expanded address+byte output.
 
 ## GitHub release
 
@@ -63,3 +71,9 @@ git push origin v0.1.0
 	- build x64 DLL
 	- create `IntelHexExpandPlugin-x64.zip`
 	- publish a GitHub Release for that tag with both DLL and zip attached
+
+4. Open GitHub repository page:
+	- `Actions` tab: confirm workflow succeeded.
+	- `Releases` page: confirm new release `vX.Y.Z` exists.
+
+5. (Optional) Edit release notes/title from GitHub UI.

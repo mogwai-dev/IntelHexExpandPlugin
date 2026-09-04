@@ -27,6 +27,24 @@ Output DLL:
 
 ## Install to WinMerge
 
+### WinGet
+
+After the package is published in the Windows Package Manager community
+repository, install it with:
+
+```powershell
+winget install --id mogwai-dev.IntelHexExpandPlugin -e
+```
+
+To upgrade or uninstall:
+
+```powershell
+winget upgrade --id mogwai-dev.IntelHexExpandPlugin -e
+winget uninstall --id mogwai-dev.IntelHexExpandPlugin -e
+```
+
+### Installer
+
 Download and run `IntelHexExpandPlugin-x64-setup.exe` from the latest GitHub Release.
 The installer requires no administrator privileges and installs the plugin for the
 current user. Close WinMerge before installing or uninstalling the plugin.

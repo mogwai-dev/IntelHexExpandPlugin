@@ -58,7 +58,7 @@ unsafe extern "system" fn wm_query_interface(
     riid: *const GUID,
     ppv: *mut *mut c_void,
 ) -> HRESULT {
-    if ppv.is_null() {
+    if riid.is_null() || ppv.is_null() {
         return E_POINTER;
     }
     *ppv = std::ptr::null_mut();
@@ -284,7 +284,7 @@ unsafe extern "system" fn cf_query_interface(
     riid: *const GUID,
     ppv: *mut *mut c_void,
 ) -> HRESULT {
-    if ppv.is_null() {
+    if riid.is_null() || ppv.is_null() {
         return E_POINTER;
     }
     *ppv = std::ptr::null_mut();
@@ -337,7 +337,9 @@ unsafe extern "system" fn cf_create_instance(
     GLOBAL_OBJECTS.fetch_add(1, Ordering::Release);
 
     let ptr = Box::into_raw(obj) as *mut c_void;
-    wm_query_interface(ptr, riid, ppv)
+    let result = wm_query_interface(ptr, riid, ppv);
+    wm_release(ptr);
+    result
 }
 
 unsafe extern "system" fn cf_lock_server(_this: *mut c_void, _f_lock: BOOL) -> HRESULT {
@@ -401,7 +403,7 @@ pub unsafe extern "system" fn DllGetClassObject(
     riid: *const GUID,
     ppv: *mut *mut c_void,
 ) -> HRESULT {
-    if ppv.is_null() {
+    if rclsid.is_null() || riid.is_null() || ppv.is_null() {
         return E_POINTER;
     }
     *ppv = std::ptr::null_mut();
@@ -417,7 +419,9 @@ pub unsafe extern "system" fn DllGetClassObject(
     GLOBAL_OBJECTS.fetch_add(1, Ordering::Release);
 
     let ptr = Box::into_raw(factory) as *mut c_void;
-    cf_query_interface(ptr, riid, ppv)
+    let result = cf_query_interface(ptr, riid, ppv);
+    cf_release(ptr);
+    result
 }
 
 #[no_mangle]
@@ -432,4 +436,41 @@ pub extern "system" fn DllCanUnloadNow() -> HRESULT {
 #[no_mangle]
 pub extern "system" fn DllMain(_hinst: *mut c_void, _reason: u32, _reserved: *mut c_void) -> i32 {
     1
+}
+
+#[cfg(test)]
+mod com_tests {
+    use super::*;
+
+    #[test]
+    fn class_factory_and_plugin_are_released() {
+        unsafe {
+            let mut factory = std::ptr::null_mut();
+            assert_eq!(
+                DllGetClassObject(
+                    &CLSID_WINMERGESCRIPT,
+                    &IClassFactory::IID,
+                    &mut factory,
+                ),
+                S_OK
+            );
+            assert_eq!(GLOBAL_OBJECTS.load(Ordering::Acquire), 1);
+
+            let mut plugin = std::ptr::null_mut();
+            assert_eq!(
+                cf_create_instance(
+                    factory,
+                    std::ptr::null_mut(),
+                    &IID_IWINMERGESCRIPT,
+                    &mut plugin,
+                ),
+                S_OK
+            );
+            assert_eq!(GLOBAL_OBJECTS.load(Ordering::Acquire), 2);
+
+            assert_eq!(wm_release(plugin), 0);
+            assert_eq!(cf_release(factory), 0);
+            assert_eq!(DllCanUnloadNow(), S_OK);
+        }
+    }
 }

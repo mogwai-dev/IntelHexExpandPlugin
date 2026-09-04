@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IntelHexExpandPlugin ソフトウェア構造</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17201d;
+      --muted: #5b6762;
+      --paper: #f3f1ea;
+      --panel: #fffdf7;
+      --line: #c9cec8;
+      --green: #176b55;
+      --green-soft: #dcebe4;
+      --red: #a63f31;
+      --yellow: #e9bc55;
+      --blue: #2c5f87;
+      --code: #202925;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(23, 32, 29, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 32, 29, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: "BIZ UDPGothic", "Yu Gothic UI", sans-serif;
+      line-height: 1.75;
+    }
+
+    a { color: var(--green); }
+
+    code {
+      padding: 0.12em 0.35em;
+      color: #f8f5e9;
+      background: var(--code);
+      border-radius: 3px;
+      font-family: "Cascadia Code", "BIZ UDGothic", monospace;
+      font-size: 0.9em;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 920px);
+      gap: 48px;
+      width: min(1240px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 48px 0 80px;
+    }
+
+    nav {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      padding: 18px 0;
+      border-top: 4px solid var(--green);
+      border-bottom: 1px solid var(--line);
+    }
+
+    nav strong {
+      display: block;
+      margin-bottom: 12px;
+      font-family: "BIZ UDPMincho", "Yu Mincho", serif;
+      font-size: 1.05rem;
+    }
+
+    nav a {
+      display: block;
+      padding: 5px 0;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.88rem;
+    }
+
+    nav a:hover { color: var(--green); }
+
+    main { min-width: 0; }
+
+    header {
+      padding: 16px 0 40px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      color: var(--red);
+      font-family: "Cascadia Code", monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 {
+      font-family: "BIZ UDPMincho", "Yu Mincho", serif;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      max-width: 780px;
+      margin: 12px 0 18px;
+      font-size: clamp(2rem, 6vw, 4.6rem);
+      line-height: 1.06;
+    }
+
+    .lead {
+      max-width: 720px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 1.08rem;
+    }
+
+    section {
+      padding: 42px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0 0 20px;
+      font-size: 1.75rem;
+      line-height: 1.3;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 1.08rem;
+    }
+
+    p { max-width: 780px; }
+
+    .answer {
+      padding: 22px 24px;
+      background: var(--green-soft);
+      border-left: 5px solid var(--green);
+    }
+
+    .answer strong { color: var(--green); }
+
+    .architecture {
+      display: grid;
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .layer {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      min-height: 104px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .layer-label {
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      color: white;
+      background: var(--green);
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .layer:nth-child(2) .layer-label { background: var(--blue); }
+    .layer:nth-child(3) .layer-label { color: var(--ink); background: var(--yellow); }
+
+    .layer-body { padding: 18px 22px; }
+    .layer-body p { margin: 5px 0 0; color: var(--muted); }
+
+    .arrow {
+      height: 18px;
+      margin-left: 74px;
+      border-left: 2px solid var(--muted);
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(110px, 1fr));
+      gap: 10px;
+      align-items: stretch;
+      margin: 26px 0 8px;
+    }
+
+    .step {
+      position: relative;
+      min-height: 142px;
+      padding: 15px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-top: 4px solid var(--green);
+      border-radius: 5px;
+    }
+
+    .step:not(:last-child)::after {
+      position: absolute;
+      top: 50%;
+      right: -9px;
+      z-index: 2;
+      width: 8px;
+      height: 8px;
+      content: "";
+      border-top: 2px solid var(--red);
+      border-right: 2px solid var(--red);
+      transform: rotate(45deg);
+    }
+
+    .step b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--red);
+      font-family: "Cascadia Code", monospace;
+      font-size: 0.75rem;
+    }
+
+    .step span { font-size: 0.9rem; }
+
+    .guid-grid, .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .fact {
+      padding: 19px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+    }
+
+    .fact .tag {
+      display: inline-block;
+      margin-bottom: 9px;
+      color: var(--red);
+      font-family: "Cascadia Code", monospace;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .fact p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+    table {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+      table-layout: fixed;
+      background: var(--panel);
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+    }
+
+    th { background: #e7e8e1; }
+
+    .callout {
+      margin-top: 22px;
+      padding: 16px 20px;
+      border: 1px solid var(--yellow);
+      background: #fff8df;
+    }
+
+    .file-map {
+      display: grid;
+      grid-template-columns: 1fr 1.8fr;
+      gap: 0;
+      margin-top: 22px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    .file-map div { padding: 12px 15px; border-bottom: 1px solid var(--line); }
+    .file-map div:nth-last-child(-n + 2) { border-bottom: 0; }
+    .file-map div:nth-child(odd) { font-family: "Cascadia Code", monospace; font-size: 0.85rem; }
+
+    footer { padding-top: 28px; color: var(--muted); font-size: 0.82rem; }
+
+    @media (max-width: 900px) {
+      .shell { display: block; width: min(100% - 32px, 760px); padding-top: 20px; }
+      nav { position: static; margin-bottom: 28px; }
+      nav a { display: inline-block; margin-right: 14px; }
+      .flow { grid-template-columns: 1fr; }
+      .step { min-height: auto; }
+      .step:not(:last-child)::after { top: auto; right: 50%; bottom: -8px; transform: rotate(135deg); }
+      .guid-grid, .tech-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .layer { grid-template-columns: 1fr; }
+      .layer-label { place-items: start; text-align: left; }
+      .arrow { margin-left: 24px; }
+      table, tbody, tr, td { display: block; }
+      thead { display: none; }
+      table { border: 0; background: transparent; }
+      tbody { display: grid; gap: 12px; }
+      tr { background: var(--panel); border: 1px solid var(--line); }
+      td {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr);
+        gap: 12px;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        overflow-wrap: break-word;
+      }
+      td:last-child { border-bottom: 0; }
+      td::before { color: var(--red); font-size: 0.72rem; font-weight: 700; }
+      .contract-table td:nth-child(1)::before { content: "契約"; }
+      .contract-table td:nth-child(2)::before { content: "役割"; }
+      .contract-table td:nth-child(3)::before { content: "実装"; }
+      .abi-table td:nth-child(1)::before { content: "型"; }
+      .abi-table td:nth-child(2)::before { content: "意味"; }
+      .abi-table td:nth-child(3)::before { content: "理由"; }
+      .file-map { grid-template-columns: 1fr; }
+      .file-map div:nth-child(odd) { padding-bottom: 3px; border-bottom: 0; }
+      .file-map div:nth-child(even) { padding-top: 3px; }
+      .file-map div:nth-last-child(-n + 2) { border-bottom: 1px solid var(--line); }
+      .file-map div:last-child { border-bottom: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav aria-label="目次">
+      <strong>IntelHexExpandPlugin</strong>
+      <a href="#why-guid">なぜGUIDが必要か</a>
+      <a href="#architecture">ソフトウェア構造</a>
+      <a href="#loading">DLLロードの流れ</a>
+      <a href="#interfaces">COMインターフェース</a>
+      <a href="#technology">使用技術</a>
+      <a href="#files">ファイルの責務</a>
+    </nav>
+
+    <main>
+      <header>
+        <div class="eyebrow">Architecture note / Windows x64</div>
+        <h1>Rust製WinMergeプラグインの中身</h1>
+        <p class="lead">IntelHexExpandPluginを題材に、WinMergeがDLLをどう見つけ、COMオブジェクトをどう生成し、Intel HEX変換をどう呼び出すかを、言語構文ではなく境界と契約に絞って説明する。</p>
+      </header>
+
+      <section id="why-guid">
+        <h2>なぜGUIDが必要なのか</h2>
+        <div class="answer">
+          <strong>短い答え:</strong> WinMergeとDLLが「どのクラスを作るのか」「そのオブジェクトがどのインターフェースを持つのか」を、名前やメモリアドレスに依存せず一致させるため。
+        </div>
+        <p>COMではDLL名だけでは呼び出す対象が決まらない。1つのDLLが複数クラスや複数インターフェースを公開でき、表示名は変更や重複が起こり得る。そこで128 bitのGUIDを、長期間変わらない機械向け識別子として使う。</p>
+
+        <div class="guid-grid">
+          <article class="fact">
+            <span class="tag">IID</span>
+            <h3>IWinMergeScript</h3>
+            <p><code>9B4C…7249</code><br>メソッド集合とvtable配置、つまり「会話の型」を識別する。</p>
+          </article>
+          <article class="fact">
+            <span class="tag">CLSID</span>
+            <h3>WinMergeScript class</h3>
+            <p><code>C6E9…C4AE</code><br>生成したい具象COMクラスを識別する。<code>DllGetClassObject</code>が照合する値。</p>
+          </article>
+          <article class="fact">
+            <span class="tag">LIBID</span>
+            <h3>Type Library</h3>
+            <p><code>DCB0…4D9C</code><br>型情報一式を識別する。名前呼び出しをメソッドIDへ変換するときに使われる。</p>
+          </article>
+        </div>
+
+        <div class="callout"><strong>GUIDは秘密鍵ではない。</strong> 認証・暗号・ライセンスのためではなく、世界規模で衝突しにくい識別子である。同じ契約を保つ限りIIDは変更しない。互換性のないインターフェースへ変える場合は新しいIIDを割り当てる。</div>
+      </section>
+
+      <section id="architecture">
+        <h2>ソフトウェア構造</h2>
+        <p>コードは実質3層で、危険なWindows FFIを外側へ寄せ、変換ロジックを通常のRustとして分離している。</p>
+
+        <div class="architecture" role="img" aria-label="WinMerge、COMアダプター、Intel HEX変換器の3層構造">
+          <div class="layer">
+            <div class="layer-label">Host</div>
+            <div class="layer-body"><h3>WinMerge</h3><p>プラグインDLLを発見し、プロパティを問い合わせ、比較前に<code>UnpackFile</code>を呼ぶ。</p></div>
+          </div>
+          <div class="arrow"></div>
+          <div class="layer">
+            <div class="layer-label">Windows adapter</div>
+            <div class="layer-body"><h3>COM / DLL境界</h3><p><code>lib.rs</code>。GUID照合、クラス生成、参照カウント、BSTR変換、HRESULT返却、Type Library連携を担当。</p></div>
+          </div>
+          <div class="arrow"></div>
+          <div class="layer">
+            <div class="layer-label">Domain</div>
+            <div class="layer-body"><h3>Intel HEX変換器</h3><p><code>intel_hex.rs</code>。<code>BufRead → Write</code>だけに依存し、レコード解析、アドレス計算、整形を担当。COMなしで単体テスト可能。</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="loading">
+        <h2>DLLロードから変換まで</h2>
+        <div class="flow" role="img" aria-label="プラグイン呼び出しシーケンス">
+          <div class="step"><b>01 / DISCOVER</b><span>WinMergeが<code>MergePlugins</code>内のDLLを発見してプロセスへロード。</span></div>
+          <div class="step"><b>02 / FACTORY</b><span><code>DllGetClassObject(CLSID, IID)</code>で対象クラスのFactoryを要求。</span></div>
+          <div class="step"><b>03 / INSTANCE</b><span><code>IClassFactory::CreateInstance</code>が<code>WinMergeScript</code>を生成。</span></div>
+          <div class="step"><b>04 / CONTRACT</b><span><code>IDispatch</code>経由でPluginEvent、Filter、UnpackFileなどを照会。</span></div>
+          <div class="step"><b>05 / EXPAND</b><span>入力・出力パスを受け取り、純粋な変換器へストリームを渡す。</span></div>
+        </div>
+        <p><code>DllCanUnloadNow</code>は生存中オブジェクトが0かを返す。WinMergeはその結果を見てDLLを安全にアンロードできる。</p>
+      </section>
+
+      <section id="interfaces">
+        <h2>境界で使われるインターフェース</h2>
+        <table class="contract-table">
+          <thead><tr><th>契約</th><th>役割</th><th>このプラグインでの扱い</th></tr></thead>
+          <tbody>
+            <tr><td><code>IUnknown</code></td><td>全COMオブジェクトの基底。インターフェース照会と寿命管理。</td><td><code>QueryInterface</code>、<code>AddRef</code>、<code>Release</code>を実装。</td></tr>
+            <tr><td><code>IClassFactory</code></td><td>CLSIDに対応するCOMオブジェクトの生成。</td><td>DLLがFactoryを返し、FactoryがWinMergeScriptを生成。</td></tr>
+            <tr><td><code>IDispatch</code></td><td>メソッド名やDISPIDを使う動的呼び出し。</td><td>埋め込みType Libraryへ名前解決と呼び出しを委譲。</td></tr>
+            <tr><td><code>IWinMergeScript</code></td><td>WinMergeプラグイン固有のプロパティと処理。</td><td><code>FILE_PACK_UNPACK</code>、対象拡張子、<code>UnpackFile</code>などを公開。</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-top: 28px;">ABIで受け渡す型</h3>
+        <table class="abi-table">
+          <thead><tr><th>型</th><th>意味</th><th>理由</th></tr></thead>
+          <tbody>
+            <tr><td><code>HRESULT</code></td><td>呼び出し自体の成功・失敗コード。</td><td>Windows/COM共通のエラー伝達規約。</td></tr>
+            <tr><td><code>BSTR</code></td><td>長さを保持するUnicode文字列。</td><td>ファイルパスやプラグイン情報をCOM境界で渡す。</td></tr>
+            <tr><td><code>VARIANT_BOOL</code></td><td>COM Automationの真偽値。</td><td>Rustの<code>bool</code>とは表現が異なり、真は<code>-1</code>。</td></tr>
+            <tr><td><code>vtable</code></td><td>関数ポインターを並べた表。</td><td>Rust/C++など実装言語が違っても、同じメモリ配置と呼出規約で会話できる。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="technology">
+        <h2>使っている技術</h2>
+        <div class="tech-grid">
+          <article class="fact"><span class="tag">RUST CDYLIB</span><h3>Windows DLL</h3><p><code>crate-type = cdylib</code>でRust固有ライブラリではなく、C ABIでロード可能なDLLを生成する。</p></article>
+          <article class="fact"><span class="tag">WINDOWS-RS</span><h3>Win32 / COM bindings</h3><p><code>windows</code> crateがGUID、BSTR、HRESULT、IDispatchなどWindows APIの型と関数を提供する。</p></article>
+          <article class="fact"><span class="tag">IDL + MIDL</span><h3>契約定義</h3><p>IDLにインターフェース、メソッド、GUIDを記述し、MIDLがType Libraryを生成する。</p></article>
+          <article class="fact"><span class="tag">TYPE LIBRARY</span><h3>DLL内の型情報</h3><p><code>build.rs</code>がTLBをリソースとしてDLLへ埋め込む。実行時は自分自身から型情報をロードする。</p></article>
+          <article class="fact"><span class="tag">REGISTRY-FREE</span><h3>配置だけで導入</h3><p><code>regsvr32</code>やCOMレジストリ登録を使わない。WinMergeがプラグインフォルダからDLLを直接ロードする。</p></article>
+          <article class="fact"><span class="tag">X64 ABI</span><h3>ホストと同じアーキテクチャ</h3><p>DLLはWinMergeプロセス内で動くためbit数を一致させる。このプロジェクトはx64専用。</p></article>
+        </div>
+      </section>
+
+      <section id="files">
+        <h2>ファイルと責務</h2>
+        <div class="file-map">
+          <div>IntelHexExpand.idl</div><div>WinMerge向けCOM契約、IID、CLSID、LIBIDの正本。</div>
+          <div>src/lib.rs</div><div>DLLエクスポート、COMオブジェクト、vtable、型情報、ファイルI/Oのアダプター。</div>
+          <div>src/intel_hex.rs</div><div>Intel HEXの解析と比較用テキストへの変換。Windows APIから独立。</div>
+          <div>build.rs</div><div>MIDL実行、Type Library生成、DLLリソースへの埋め込み。</div>
+          <div>Cargo.toml</div><div>cdylib指定とwindows-rs機能の依存関係。</div>
+          <div>installer/*.iss</div><div>DLLをユーザー別WinMergeプラグインフォルダへ配置し、削除情報を登録。</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>設計上の境界</h2>
+        <p>COM層は「WinMergeと会話するための翻訳機」で、Intel HEXの知識を持たせない。変換層は「Intel HEXを処理する本体」で、GUID、BSTR、HRESULTを知らない。この分離により、危険なポインター操作の範囲が限定され、変換仕様は通常のRustテストで高速に検証できる。</p>
+        <div class="callout"><strong>変更ルール:</strong> 変換仕様だけなら<code>intel_hex.rs</code>を変更する。WinMergeとの契約を変えるならIDL、vtable、実装、Type Libraryを一組として変更し、互換性が壊れる場合は新しいIIDを発行する。</div>
+      </section>
+
+      <footer>IntelHexExpandPlugin architecture note / generated from the repository implementation</footer>
+    </main>
+  </div>
+</body>
+</html>

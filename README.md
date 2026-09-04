@@ -27,6 +27,21 @@ Output DLL:
 
 ## Install to WinMerge
 
+Download and run `IntelHexExpandPlugin-x64-setup.exe` from the latest GitHub Release.
+The installer requires no administrator privileges and installs the plugin for the
+current user. Close WinMerge before installing or uninstalling the plugin.
+
+For unattended installation (including WinGet), use:
+
+```powershell
+IntelHexExpandPlugin-x64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+```
+
+Uninstall from **Settings > Apps > Installed apps**, or with WinGet after the
+package is published.
+
+### Manual install
+
 Copy DLL into one of:
 
 - `MergePlugins/` next to `WinMerge.exe`
@@ -70,7 +85,8 @@ git push origin v0.1.0
 3. GitHub Actions will:
 	- build x64 DLL
 	- create `IntelHexExpandPlugin-x64.zip`
-	- publish a GitHub Release for that tag with both DLL and zip attached
+	- create `IntelHexExpandPlugin-x64-setup.exe`
+	- publish a GitHub Release for that tag with the DLL, zip, and installer attached
 
 4. Open GitHub repository page:
 	- `Actions` tab: confirm workflow succeeded.

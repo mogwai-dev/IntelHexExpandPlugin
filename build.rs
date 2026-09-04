@@ -192,6 +192,8 @@ fn run_midl(idl_path: &Path, out_dir: &Path) -> PathBuf {
 
     let status = midl_cmd
         .arg(idl_path)
+        .arg("/out")
+        .arg(out_dir)
         .arg("/tlb")
         .arg(&tlb_path)
         .arg("/nologo")

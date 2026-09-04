@@ -1,8 +1,10 @@
 #![allow(non_snake_case)]
 
+mod intel_hex;
+
 use std::ffi::c_void;
 use std::fs;
-use std::io::{self, Write};
+use std::io::{self, BufReader, BufWriter};
 use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -20,11 +22,9 @@ use windows::Win32::System::LibraryLoader::{
     GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
 };
 use windows::Win32::System::Ole::{LoadTypeLibEx, REGKIND_NONE};
-use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 const IID_IWINMERGESCRIPT: GUID = GUID::from_u128(0x9b4c9a71_62de_4a02_8d96_6cf7d65e7249);
 const CLSID_WINMERGESCRIPT: GUID = GUID::from_u128(0xc6e98fb5_a2e4_4b83_9f5f_3f5b5105c4ae);
-const DEFAULT_WIDTH: usize = 16;
 
 static GLOBAL_OBJECTS: AtomicU32 = AtomicU32::new(0);
 
@@ -385,140 +385,39 @@ unsafe fn load_type_info() -> Result<ITypeInfo, HRESULT> {
     Ok(typeinfo)
 }
 
-fn parse_hex_byte(s: &str) -> Result<u8, String> {
-    u8::from_str_radix(s, 16).map_err(|_| format!("invalid hex byte: {s}"))
-}
-
-fn bytes_from_hex(line: &str) -> Result<Vec<u8>, String> {
-    if line.len() % 2 != 0 {
-        return Err("hex length is not even".to_string());
-    }
-    let mut bytes = Vec::with_capacity(line.len() / 2);
-    let mut i = 0;
-    while i < line.len() {
-        let b = parse_hex_byte(&line[i..i + 2])?;
-        bytes.push(b);
-        i += 2;
-    }
-    Ok(bytes)
-}
-
-fn write_data_lines<W: Write>(
-    mut out: W,
-    base: u32,
-    addr16: u16,
-    data: &[u8],
-    width: usize,
-) -> io::Result<()> {
-    for (offset, chunk) in data.chunks(width).enumerate() {
-        let addr = base + addr16 as u32 + (offset as u32 * width as u32);
-        write!(out, "{:08X}:", addr)?;
-        for b in chunk {
-            write!(out, " {:02X}", b)?;
-        }
-        write!(out, "\r\n")?;
-    }
-    Ok(())
-}
-
 fn expand_hex_file(src: &str, dst: &str) -> io::Result<()> {
-    let input = fs::read_to_string(src).unwrap_or_default();
-    let mut out = io::BufWriter::new(fs::File::create(dst)?);
-    let mut base: u32 = 0;
-
-    for (line_no, raw_line) in input.lines().enumerate() {
-        let line = raw_line.trim();
-        if line.is_empty() {
-            continue;
-        }
-        if !line.starts_with(':') {
-            writeln!(out, "{}", line)?;
-            continue;
-        }
-
-        let hex = &line[1..];
-        let bytes = match bytes_from_hex(hex) {
-            Ok(b) => b,
-            Err(_) => {
-                writeln!(out, "; invalid hex line {}", line_no + 1)?;
-                continue;
-            }
-        };
-        if bytes.len() < 5 {
-            writeln!(out, "; invalid hex line {}", line_no + 1)?;
-            continue;
-        }
-
-        let byte_count = bytes[0] as usize;
-        let addr = ((bytes[1] as u16) << 8) | bytes[2] as u16;
-        let record_type = bytes[3];
-
-        let expected_len = 4 + byte_count + 1;
-        if bytes.len() != expected_len {
-            writeln!(out, "; invalid hex length at line {}", line_no + 1)?;
-            continue;
-        }
-
-        let data = &bytes[4..4 + byte_count];
-        let mut sum: u8 = 0;
-        for b in &bytes {
-            sum = sum.wrapping_add(*b);
-        }
-        if sum != 0 {
-            writeln!(out, "; checksum mismatch at line {}", line_no + 1)?;
-        }
-
-        match record_type {
-            0x00 => {
-                write_data_lines(&mut out, base, addr, data, DEFAULT_WIDTH)?;
-            }
-            0x01 => {
-                break;
-            }
-            0x02 => {
-                if data.len() >= 2 {
-                    let seg = ((data[0] as u32) << 8) | data[1] as u32;
-                    base = seg << 4;
-                }
-            }
-            0x04 => {
-                if data.len() >= 2 {
-                    let upper = ((data[0] as u32) << 8) | data[1] as u32;
-                    base = upper << 16;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    Ok(())
+    let input = BufReader::new(fs::File::open(src)?);
+    let output = BufWriter::new(fs::File::create(dst)?);
+    intel_hex::expand(input, output)
 }
 
+/// # Safety
+///
+/// `rclsid` and `riid` must point to valid `GUID` values. When non-null, `ppv`
+/// must point to writable memory for one interface pointer.
 #[no_mangle]
-pub extern "system" fn DllGetClassObject(
+pub unsafe extern "system" fn DllGetClassObject(
     rclsid: *const GUID,
     riid: *const GUID,
     ppv: *mut *mut c_void,
 ) -> HRESULT {
-    unsafe {
-        if ppv.is_null() {
-            return E_POINTER;
-        }
-        *ppv = std::ptr::null_mut();
-
-        if *rclsid != CLSID_WINMERGESCRIPT {
-            return E_NOINTERFACE;
-        }
-
-        let factory = Box::new(ClassFactory {
-            vtbl: &CLASS_FACTORY_VTBL,
-            ref_count: AtomicU32::new(1),
-        });
-        GLOBAL_OBJECTS.fetch_add(1, Ordering::Release);
-
-        let ptr = Box::into_raw(factory) as *mut c_void;
-        cf_query_interface(ptr, riid, ppv)
+    if ppv.is_null() {
+        return E_POINTER;
     }
+    *ppv = std::ptr::null_mut();
+
+    if *rclsid != CLSID_WINMERGESCRIPT {
+        return E_NOINTERFACE;
+    }
+
+    let factory = Box::new(ClassFactory {
+        vtbl: &CLASS_FACTORY_VTBL,
+        ref_count: AtomicU32::new(1),
+    });
+    GLOBAL_OBJECTS.fetch_add(1, Ordering::Release);
+
+    let ptr = Box::into_raw(factory) as *mut c_void;
+    cf_query_interface(ptr, riid, ppv)
 }
 
 #[no_mangle]
@@ -531,10 +430,6 @@ pub extern "system" fn DllCanUnloadNow() -> HRESULT {
 }
 
 #[no_mangle]
-pub extern "system" fn DllMain(_hinst: *mut c_void, reason: u32, _reserved: *mut c_void) -> i32 {
-    if reason == DLL_PROCESS_ATTACH {
-        1
-    } else {
-        1
-    }
+pub extern "system" fn DllMain(_hinst: *mut c_void, _reason: u32, _reserved: *mut c_void) -> i32 {
+    1
 }
